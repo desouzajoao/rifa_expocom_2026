@@ -847,8 +847,12 @@
     <!-- Toast Notification -->
     <div class="toast" id="toast">Operação realizada com sucesso!</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
             // ==========================================
             // Configurações & Estado
             // ==========================================
@@ -897,21 +901,77 @@
             `;
 
             // ==========================================
+            // Banco de Dados em Tempo Real (Cloud Sincronização)
+            // ==========================================
+            let db;
+            let auth;
+            let rifasDocRef;
+            let isConnected = false;
+
+            try {
+                // Estas variáveis globais gerenciam a conexão segura automaticamente
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'rifas-offline-dev';
+                const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+                const firebaseConfig = JSON.parse(configStr);
+                
+                if (Object.keys(firebaseConfig).length > 0) {
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    
+                    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    
+                    // Caminho da base de dados pública compartilhada entre todos
+                    rifasDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'campanha', 'estado_atual');
+                    isConnected = true;
+                }
+            } catch (e) {
+                console.warn("🟠 Ambiente em nuvem não detectado. Usando armazenamento local (apenas no seu celular).", e);
+            }
+
+            // ==========================================
             // Inicialização & Core Logic
             // ==========================================
             function init() {
-                loadTickets();
-                renderGrid();
-                updateCounters(false);
+                if (isConnected) {
+                    // Escuta as alterações em tempo real feitas por VOCÊ ou QUALQUER PESSOA no banco de dados
+                    onSnapshot(rifasDocRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            if (data && data.tickets && Array.isArray(data.tickets) && data.tickets.length === TOTAL_TICKETS) {
+                                state.tickets = data.tickets;
+                                renderGrid();
+                                updateCounters(true);
+                            } else {
+                                generateDefaultTickets();
+                            }
+                        } else {
+                            generateDefaultTickets();
+                        }
+                    }, (error) => {
+                        console.error("Erro na sincronização online:", error);
+                        showToast("Desconectado do servidor. Tentando reconectar...");
+                    });
+                } else {
+                    // Fallback local se não houver conexão
+                    loadTicketsLocal();
+                    renderGrid();
+                    updateCounters(false);
+                }
+                
                 setupEventListeners();
             }
 
-            function loadTickets() {
+            function loadTicketsLocal() {
                 const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
                     try {
                         state.tickets = JSON.parse(stored);
-                        // Garantir que temos exatos 200
                         if(state.tickets.length !== TOTAL_TICKETS) throw new Error("Invalid length");
                     } catch (e) {
                         generateDefaultTickets();
@@ -921,22 +981,51 @@
                 }
             }
 
-            function generateDefaultTickets() {
+            async function generateDefaultTickets() {
                 state.tickets = Array.from({ length: TOTAL_TICKETS }, (_, i) => ({
                     id: i + 1,
                     status: 'available' // 'available' ou 'sold'
                 }));
-                saveTickets();
+                await saveTickets();
+                if (!isConnected) {
+                    renderGrid();
+                    updateCounters(false);
+                }
             }
 
-            function saveTickets() {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+            async function saveTickets() {
+                if (isConnected && auth && auth.currentUser) {
+                    try {
+                        await setDoc(rifasDocRef, { tickets: state.tickets }, { merge: true });
+                    } catch (error) {
+                        console.error("Erro ao salvar na nuvem:", error);
+                        showToast("Erro de sincronização. Verifique sua internet.");
+                    }
+                } else {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+                }
             }
 
             // ==========================================
             // Renderização & UI Updates
             // ==========================================
             function renderGrid() {
+                // Atualização super inteligente: apenas atualiza as cores dos botões já existentes
+                // para não piscar a tela ou atrapalhar cliques simultâneos
+                if (gridEl.children.length === TOTAL_TICKETS) {
+                    state.tickets.forEach((ticket, i) => {
+                        const card = gridEl.children[i];
+                        if (ticket.status === 'sold') {
+                            if (!card.classList.contains('sold')) card.classList.add('sold');
+                        } else {
+                            if (card.classList.contains('sold')) card.classList.remove('sold');
+                        }
+                    });
+                    applyFilters();
+                    return;
+                }
+
+                // Criação inicial da grade de rifas
                 const fragment = document.createDocumentFragment();
                 
                 state.tickets.forEach(ticket => {
@@ -1075,7 +1164,7 @@
                     document.body.classList.add('admin-mode');
                     btnLoginToggle.textContent = 'Sair do Modo Admin';
                     btnLoginToggle.classList.replace('btn-outline', 'btn-primary');
-                    showToast('Modo Administrador ativado.');
+                    showToast('Modo Administrador ativado. Edição liberada.');
                 } else {
                     document.body.classList.remove('admin-mode');
                     btnLoginToggle.textContent = 'Área Administrativa';
@@ -1084,10 +1173,10 @@
                 }
             }
 
-            function showToast(message) {
+            function showToast(message, duration = 3000) {
                 toastEl.textContent = message;
                 toastEl.classList.add('show');
-                setTimeout(() => toastEl.classList.remove('show'), 3000);
+                setTimeout(() => toastEl.classList.remove('show'), duration);
             }
 
             function setupEventListeners() {
