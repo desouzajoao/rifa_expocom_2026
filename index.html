@@ -911,16 +911,15 @@
             try {
                 // Estas variáveis globais gerenciam a conexão segura automaticamente
                 const firebaseConfig = {
-                    apiKey: "SUA_API_KEY",
+                    apiKey: "AIzaSyAXb2ZZG0a8FwyuW1IsZWDdqU8wVfPtD8k",
                     authDomain: "rifa-expocom-2026.firebaseapp.com",
                     projectId: "rifa-expocom-2026",
                     storageBucket: "rifa-expocom-2026.firebasestorage.app",
-                    messagingSenderId: "SEU_MESSAGING_SENDER_ID",
-                    appId: "SEU_APP_ID"
+                    messagingSenderId: "1012829411970",
+                    appId: "1:1012829411970:web:0817217c9985bbe181b29b"
                 };
-                const appId = "rifa-expocom-2026";
-                
-                if (Object.keys(firebaseConfig).length > 0) {
+                const appId="rifa-expocom-2026";
+                {
                     const app = initializeApp(firebaseConfig);
                     auth = getAuth(app);
                     db = getFirestore(app);
