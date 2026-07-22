@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Rifas</title>
+    <style>
+        :root {
+            /* Cores da Identidade Visual (Baseado no Pôster) */
+            --brand-magenta: #d91e6b;
+            --brand-magenta-dark: #b81658;
+            --brand-dark-green: #0a2314;
+            --brand-lime: #a3e635;
+            
+            /* Cores do Sistema (Conforme requisição) */
+            --bg-light: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --avail-green: #22c55e;
+            --avail-green-dark: #16a34a;
+            --sold-red: #ef4444;
+            --sold-red-dark: #dc2626;
+            
+            /* UI & Efeitos */
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-full: 9999px;
+            
+            /* Fontes */
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            font-family: var(--font-family);
+            color: var(--text-main);
+            line-height: 1.5;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Brand Bar */
+        .brand-bar {
+            height: 6px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--brand-magenta), var(--brand-lime));
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .header {
+            position: sticky;
+            top: 6px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 900;
+            padding: 20px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .title-group h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--brand-dark-green);
+            letter-spacing: -0.025em;
+            margin-bottom: 4px;
+        }
+
+        .title-group p {
+            font-size: 1rem;
+            color: var(--brand-magenta);
+            font-weight: 600;
+        }
+
+        .stats-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--radius-md);
+            padding: 12px 20px;
+            min-width: 120px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
+        .stat-value.avail { color: var(--avail-green); }
+        .stat-value.sold { color: var(--sold-red); }
+
+        /* Botões */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            outline: none;
+        }
+
+        .btn:active { transform: scale(0.96); }
+
+        .btn-primary {
+            background-color: var(--brand-dark-green);
+            color: white;
+            box-shadow: 0 4px 6px rgba(10, 35, 20, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: #1a3a26;
+            box-shadow: 0 6px 12px rgba(10, 35, 20, 0.3);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--brand-dark-green);
+            border: 1px solid #cbd5e1;
+        }
+
+        .btn-outline:hover {
+            background-color: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        /* Área Admin Toolbar */
+        .admin-toolbar {
+            background-color: var(--brand-dark-green);
+            color: white;
+            border-radius: var(--radius-lg);
+            padding: 16px 24px;
+            margin: 24px auto 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            visibility: hidden;
+            height: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(-10px);
+        }
+
+        body.admin-mode .admin-toolbar {
+            opacity: 1;
+            visibility: visible;
+            height: auto;
+            margin-bottom: 24px;
+            transform: translateY(0);
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--brand-lime);
+            background: rgba(163, 230, 53, 0.1);
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            border: 1px solid rgba(163, 230, 53, 0.2);
+        }
+
+        .admin-badge svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .admin-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-admin {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            font-size: 0.875rem;
+        }
+
+        .btn-admin:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .btn-danger:hover {
+            background-color: var(--sold-red);
+            color: white;
+        }
+
+        /* Controles (Filtros e Busca) */
+        .controls-section {
+            padding: 32px 0 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+            max-width: 400px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border-radius: var(--radius-md);
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--brand-magenta);
+            box-shadow: 0 0 0 3px rgba(217, 30, 107, 0.15);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            color: #94a3b8;
+        }
+
+        .filters {
+            display: flex;
+            background: white;
+            padding: 4px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid #e2e8f0;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--bg-light);
+            color: var(--text-main);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Grid de Rifas */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+            gap: 16px;
+            padding-bottom: 60px;
+        }
+
+        .ticket-card {
+            background: var(--avail-green);
+            color: white;
+            border-radius: var(--radius-md);
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 800;
+            box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.25);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Estado Vendido */
+        .ticket-card.sold {
+            background: var(--sold-red);
+            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.25);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .ticket-card.hidden {
+            display: none;
+        }
+
+        /* Hover apenas no modo admin */
+        body.admin-mode .ticket-card {
+            cursor: pointer;
+        }
+
+        body.admin-mode .ticket-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        body.admin-mode .ticket-card:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        /* Ícone de confirmação (Check) */
+        .ticket-card .check-icon {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            width: 18px;
+            height: 18px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            padding: 3px;
+            opacity: 0;
+            transform: scale(0.3) rotate(-45deg);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .ticket-card.sold .check-icon {
+            opacity: 1;
+            transform: scale(1) rotate(0);
+        }
+
+        /* Efeito Ripple */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-anim 0.6s linear;
+            background-color: rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+        }
+
+        @keyframes ripple-anim {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        /* Modais */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.95) translateY(10px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .modal-header h2 {
+            color: var(--brand-dark-green);
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .modal-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            transition: all 0.2s;
+            background: #f8fafc;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--brand-magenta);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(217, 30, 107, 0.1);
+        }
+
+        .modal-actions {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-actions .btn {
+            flex: 1;
+        }
+
+        /* Notificação Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 3000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            .stats-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .stat-card {
+                flex: 1;
+                min-width: 30%;
+                padding: 10px;
+            }
+            #btn-login-toggle {
+                width: 100%;
+            }
+            .controls-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-wrapper {
+                max-width: 100%;
+            }
+            .admin-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .admin-actions {
+                flex-direction: column;
+            }
+            .grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+                gap: 10px;
+            }
+            .ticket-card {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand-bar"></div>
+
+    <header class="header">
+        <div class="container header-content">
+            <div class="title-group">
+                <h1>Rifas Disponíveis</h1>
+                <p>200 números</p>
+            </div>
+            
+            <div class="stats-group">
+                <div class="stat-card">
+                    <span class="stat-label">Total</span>
+                    <span class="stat-value" id="count-total">200</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Disponíveis</span>
+                    <span class="stat-value avail" id="count-avail">200</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Vendidas</span>
+                    <span class="stat-value sold" id="count-sold">0</span>
+                </div>
+            </div>
+
+            <button class="btn btn-outline" id="btn-login-toggle">
+                Área Administrativa
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Barra Administrativa (Oculta por padrão) -->
+        <div class="admin-toolbar" id="admin-toolbar">
+            <div class="admin-badge">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                Modo administrador ativo
+            </div>
+            <div class="admin-actions">
+                <button class="btn btn-admin" id="btn-export">Exportar Backup</button>
+                <input type="file" id="file-import" accept=".json" style="display: none;">
+                <button class="btn btn-admin" id="btn-import">Importar Backup</button>
+                <button class="btn btn-admin btn-danger" id="btn-reset">Resetar Rifas</button>
+            </div>
+        </div>
+
+        <section class="controls-section">
+            <div class="search-wrapper">
+                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" class="search-input" id="search-input" placeholder="Buscar número da rifa...">
+            </div>
+            
+            <div class="filters" id="filter-group">
+                <button class="filter-btn active" data-filter="all">Todas</button>
+                <button class="filter-btn" data-filter="available">Disponíveis</button>
+                <button class="filter-btn" data-filter="sold">Vendidas</button>
+            </div>
+        </section>
+
+        <!-- Grid de Rifas -->
+        <div class="grid-container" id="ticket-grid">
+            <!-- Os cartões serão inseridos via JavaScript -->
+        </div>
+    </main>
+
+    <!-- Modal de Login -->
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Acesso Restrito</h2>
+                <p>Insira suas credenciais de administrador</p>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="username">Usuário</label>
+                    <input type="text" id="username" class="form-input" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Senha</label>
+                    <input type="password" id="password" class="form-input" autocomplete="current-password">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" id="btn-close-login">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Reset -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: var(--sold-red);">Atenção!</h2>
+                <p>Tem certeza que deseja resetar todas as rifas? Esta ação apagará todos os registros de vendas atuais.</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" id="btn-cancel-reset">Cancelar</button>
+                <button type="button" class="btn btn-primary" style="background: var(--sold-red);" id="btn-confirm-reset">Sim, Resetar Tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">Operação realizada com sucesso!</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ==========================================
+            // Configurações & Estado
+            // ==========================================
+            const TOTAL_TICKETS = 200;
+            const STORAGE_KEY = '@RifasApp:tickets';
+            
+            let state = {
+                isAdmin: false,
+                tickets: [],
+                filter: 'all', // 'all', 'available', 'sold'
+                search: ''
+            };
+
+            // ==========================================
+            // Elementos do DOM
+            // ==========================================
+            const gridEl = document.getElementById('ticket-grid');
+            const countTotalEl = document.getElementById('count-total');
+            const countAvailEl = document.getElementById('count-avail');
+            const countSoldEl = document.getElementById('count-sold');
+            
+            const btnLoginToggle = document.getElementById('btn-login-toggle');
+            const loginModal = document.getElementById('login-modal');
+            const loginForm = document.getElementById('login-form');
+            const btnCloseLogin = document.getElementById('btn-close-login');
+            
+            const adminToolbar = document.getElementById('admin-toolbar');
+            const btnExport = document.getElementById('btn-export');
+            const btnImport = document.getElementById('btn-import');
+            const fileImport = document.getElementById('file-import');
+            
+            const confirmModal = document.getElementById('confirm-modal');
+            const btnReset = document.getElementById('btn-reset');
+            const btnCancelReset = document.getElementById('btn-cancel-reset');
+            const btnConfirmReset = document.getElementById('btn-confirm-reset');
+            
+            const searchInput = document.getElementById('search-input');
+            const filterGroup = document.getElementById('filter-group');
+            const toastEl = document.getElementById('toast');
+
+            // SVG Ícone de Check para as rifas vendidas
+            const checkIconSVG = `
+                <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            `;
+
+            // ==========================================
+            // Inicialização & Core Logic
+            // ==========================================
+            function init() {
+                loadTickets();
+                renderGrid();
+                updateCounters(false);
+                setupEventListeners();
+            }
+
+            function loadTickets() {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    try {
+                        state.tickets = JSON.parse(stored);
+                        // Garantir que temos exatos 200
+                        if(state.tickets.length !== TOTAL_TICKETS) throw new Error("Invalid length");
+                    } catch (e) {
+                        generateDefaultTickets();
+                    }
+                } else {
+                    generateDefaultTickets();
+                }
+            }
+
+            function generateDefaultTickets() {
+                state.tickets = Array.from({ length: TOTAL_TICKETS }, (_, i) => ({
+                    id: i + 1,
+                    status: 'available' // 'available' ou 'sold'
+                }));
+                saveTickets();
+            }
+
+            function saveTickets() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tickets));
+            }
+
+            // ==========================================
+            // Renderização & UI Updates
+            // ==========================================
+            function renderGrid() {
+                const fragment = document.createDocumentFragment();
+                
+                state.tickets.forEach(ticket => {
+                    const card = document.createElement('div');
+                    const paddedId = String(ticket.id).padStart(3, '0');
+                    
+                    card.className = `ticket-card ${ticket.status === 'sold' ? 'sold' : ''}`;
+                    card.dataset.id = ticket.id;
+                    card.innerHTML = `
+                        <span>${paddedId}</span>
+                        ${checkIconSVG}
+                    `;
+                    
+                    // Adicionar evento de clique com ripple
+                    card.addEventListener('click', handleTicketClick);
+                    
+                    fragment.appendChild(card);
+                });
+
+                gridEl.innerHTML = '';
+                gridEl.appendChild(fragment);
+                applyFilters();
+            }
+
+            function handleTicketClick(e) {
+                if (!state.isAdmin) return;
+
+                const card = e.currentTarget;
+                const id = parseInt(card.dataset.id, 10);
+                const ticketIndex = state.tickets.findIndex(t => t.id === id);
+                
+                if (ticketIndex === -1) return;
+
+                // Efeito Ripple
+                createRipple(e, card);
+
+                // Alternar estado
+                const isSold = state.tickets[ticketIndex].status === 'sold';
+                state.tickets[ticketIndex].status = isSold ? 'available' : 'sold';
+                
+                // Atualizar DOM do Card (para performance, ao invés de re-renderizar tudo)
+                if (isSold) {
+                    card.classList.remove('sold');
+                } else {
+                    card.classList.add('sold');
+                }
+                
+                saveTickets();
+                updateCounters(true);
+                applyFilters(); // Re-aplicar filtro se estiver filtrando por status
+            }
+
+            function createRipple(event, element) {
+                const circle = document.createElement('span');
+                const diameter = Math.max(element.clientWidth, element.clientHeight);
+                const radius = diameter / 2;
+
+                const rect = element.getBoundingClientRect();
+                circle.style.width = circle.style.height = `${diameter}px`;
+                circle.style.left = `${event.clientX - rect.left - radius}px`;
+                circle.style.top = `${event.clientY - rect.top - radius}px`;
+                circle.classList.add('ripple');
+
+                const existingRipple = element.querySelector('.ripple');
+                if (existingRipple) existingRipple.remove();
+
+                element.appendChild(circle);
+                setTimeout(() => circle.remove(), 600);
+            }
+
+            // Animação de números fluida
+            function animateValue(obj, start, end, duration) {
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    // Easing easeOutQuart
+                    const easeProgress = 1 - Math.pow(1 - progress, 4);
+                    obj.innerHTML = Math.floor(easeProgress * (end - start) + start);
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    } else {
+                        obj.innerHTML = end;
+                    }
+                };
+                window.requestAnimationFrame(step);
+            }
+
+            function updateCounters(animate = true) {
+                const soldCount = state.tickets.filter(t => t.status === 'sold').length;
+                const availCount = TOTAL_TICKETS - soldCount;
+
+                if (animate) {
+                    animateValue(countAvailEl, parseInt(countAvailEl.innerHTML) || 0, availCount, 600);
+                    animateValue(countSoldEl, parseInt(countSoldEl.innerHTML) || 0, soldCount, 600);
+                } else {
+                    countAvailEl.innerHTML = availCount;
+                    countSoldEl.innerHTML = soldCount;
+                }
+            }
+
+            function applyFilters() {
+                const cards = gridEl.children;
+                const searchVal = state.search.toLowerCase();
+
+                for (let i = 0; i < cards.length; i++) {
+                    const card = cards[i];
+                    const isSold = card.classList.contains('sold');
+                    const numText = card.querySelector('span').innerText.toLowerCase();
+                    
+                    let showMatch = true;
+
+                    // Filtro de Busca
+                    if (searchVal && !numText.includes(searchVal)) {
+                        showMatch = false;
+                    }
+
+                    // Filtro de Status
+                    if (state.filter === 'available' && isSold) showMatch = false;
+                    if (state.filter === 'sold' && !isSold) showMatch = false;
+
+                    if (showMatch) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                }
+            }
+
+            // ==========================================
+            // Administração & Eventos
+            // ==========================================
+            function setAdminMode(active) {
+                state.isAdmin = active;
+                if (active) {
+                    document.body.classList.add('admin-mode');
+                    btnLoginToggle.textContent = 'Sair do Modo Admin';
+                    btnLoginToggle.classList.replace('btn-outline', 'btn-primary');
+                    showToast('Modo Administrador ativado.');
+                } else {
+                    document.body.classList.remove('admin-mode');
+                    btnLoginToggle.textContent = 'Área Administrativa';
+                    btnLoginToggle.classList.replace('btn-primary', 'btn-outline');
+                    showToast('Sessão encerrada.');
+                }
+            }
+
+            function showToast(message) {
+                toastEl.textContent = message;
+                toastEl.classList.add('show');
+                setTimeout(() => toastEl.classList.remove('show'), 3000);
+            }
+
+            function setupEventListeners() {
+                // Login
+                btnLoginToggle.addEventListener('click', () => {
+                    if (state.isAdmin) {
+                        setAdminMode(false);
+                    } else {
+                        loginModal.classList.add('active');
+                        document.getElementById('username').focus();
+                    }
+                });
+
+                btnCloseLogin.addEventListener('click', () => {
+                    loginModal.classList.remove('active');
+                    loginForm.reset();
+                });
+
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const user = document.getElementById('username').value;
+                    const pass = document.getElementById('password').value;
+
+                    if (user === 'admin' && pass === '123456') {
+                        setAdminMode(true);
+                        loginModal.classList.remove('active');
+                        loginForm.reset();
+                    } else {
+                        alert('Credenciais inválidas. Tente admin / 123456');
+                    }
+                });
+
+                // Pesquisa e Filtros
+                searchInput.addEventListener('input', (e) => {
+                    state.search = e.target.value;
+                    applyFilters();
+                });
+
+                filterGroup.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        // Update active state
+                        Array.from(filterGroup.children).forEach(btn => btn.classList.remove('active'));
+                        e.target.classList.add('active');
+                        
+                        // Apply filter
+                        state.filter = e.target.dataset.filter;
+                        applyFilters();
+                    }
+                });
+
+                // Exportar
+                btnExport.addEventListener('click', () => {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.tickets));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "backup_rifas_" + new Date().toISOString().split('T')[0] + ".json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                    showToast('Backup exportado com sucesso.');
+                });
+
+                // Importar
+                btnImport.addEventListener('click', () => fileImport.click());
+                
+                fileImport.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            if (Array.isArray(importedData) && importedData.length === TOTAL_TICKETS) {
+                                state.tickets = importedData;
+                                saveTickets();
+                                renderGrid();
+                                updateCounters(true);
+                                showToast('Backup restaurado com sucesso.');
+                            } else {
+                                alert('Arquivo de backup inválido.');
+                            }
+                        } catch (err) {
+                            alert('Erro ao ler o arquivo.');
+                        }
+                        fileImport.value = ''; // Reset
+                    };
+                    reader.readAsText(file);
+                });
+
+                // Resetar
+                btnReset.addEventListener('click', () => confirmModal.classList.add('active'));
+                
+                btnCancelReset.addEventListener('click', () => confirmModal.classList.remove('active'));
+                
+                btnConfirmReset.addEventListener('click', () => {
+                    generateDefaultTickets();
+                    renderGrid();
+                    updateCounters(true);
+                    confirmModal.classList.remove('active');
+                    showToast('Todas as rifas foram resetadas.');
+                });
+
+                // Fechar modais ao clicar fora
+                window.addEventListener('click', (e) => {
+                    if (e.target === loginModal) loginModal.classList.remove('active');
+                    if (e.target === confirmModal) confirmModal.classList.remove('active');
+                });
+            }
+
+            // Iniciar a aplicação
+            init();
+        });
+    </script>
+</body>
+</html>
